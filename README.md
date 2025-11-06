@@ -179,7 +179,7 @@ This will allow admins to manage blog articles from the backend.
 
 ---
 
-**Author:** Artem  
+**Author:** snovart  
 **Framework:** Yii 2 Advanced  
 **PHP:** 8.3.x  
 **DB:** MySQL (WampServer)
