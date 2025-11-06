@@ -1,47 +1,23 @@
 <?php
 return [
-    'id' => 'app-backend',
-    'basePath' => dirname(__DIR__),
-    'controllerNamespace' => 'backend\controllers',
-    'bootstrap' => ['log'],
-
-    // Access control: only users with role "admin" can open backend
-    'as access' => [
-        'class' => \yii\filters\AccessControl::class,
-        'rules' => [
-            [
-                'allow' => true,
-                'roles' => ['admin'], // allow only admin role
-            ],
-        ],
-        'denyCallback' => function () {
-            throw new \yii\web\ForbiddenHttpException('Доступ запрещён');
-        },
+    'aliases' => [
+        '@bower' => '@vendor/bower-asset',
+        '@npm'   => '@vendor/npm-asset',
     ],
 
+    'language' => 'ru-RU',
+    'sourceLanguage' => 'en-US',
+    'timeZone' => 'Europe/Kyiv',
+
+    'vendorPath' => dirname(dirname(__DIR__)) . '/vendor',
+
     'components' => [
-        'request' => [
-            'csrfParam' => '_csrf-backend',
+        'cache' => [
+            'class' => \yii\caching\FileCache::class,
         ],
-        'user' => [
-            'identityClass' => \common\models\User::class,
-            'enableAutoLogin' => true,
-            'identityCookie' => ['name' => '_identity-backend', 'httpOnly' => true],
-        ],
-        'session' => [
-            'name' => 'advanced-backend',
-        ],
-        'log' => [
-            'traceLevel' => YII_DEBUG ? 3 : 0,
-            'targets' => [
-                [
-                    'class' => \yii\log\FileTarget::class,
-                    'levels' => ['error', 'warning'],
-                ],
-            ],
-        ],
-        'errorHandler' => [
-            'errorAction' => 'site/error',
+        'authManager' => [
+            'class' => \yii\rbac\DbManager::class, // DB-based RBAC storage
+            // 'cache' => 'cache',
         ],
     ],
 ];
