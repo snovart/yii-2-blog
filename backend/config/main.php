@@ -5,10 +5,16 @@ return [
     'controllerNamespace' => 'backend\controllers',
     'bootstrap' => ['log'],
 
-    // Access control: only users with role "admin" can open backend
     'as access' => [
         'class' => \yii\filters\AccessControl::class,
         'rules' => [
+            // allow guests to open login + error
+            [
+                'allow' => true,
+                'actions' => ['login', 'error', 'captcha'],
+                'roles' => ['?'], // guests
+            ],
+            // everything else only for admins
             [
                 'allow' => true,
                 'roles' => ['admin'],
@@ -42,6 +48,21 @@ return [
         ],
         'errorHandler' => [
             'errorAction' => 'site/error',
+        ],
+        'urlManager' => [
+            'enablePrettyUrl' => true,   // pretty URLs without ?r=
+            'showScriptName' => false,   // hide index.php
+            'rules' => [
+                '' => 'site/index',
+                'login'  => 'site/login',
+                'logout' => 'site/logout',
+
+                // optional handy rules for posts:
+                'post' => 'post/index',
+                'post/create' => 'post/create',
+                'post/<id:\d+>' => 'post/view',
+                'post/update/<id:\d+>' => 'post/update',
+            ],
         ],
     ],
 ];

@@ -78,6 +78,27 @@ class Post extends ActiveRecord
         ];
     }
 
+    /**
+     * Normalize `published_at` and set it automatically when publishing.
+     */
+    public function beforeSave($insert)
+    {
+        // Convert string input (e.g. 'YYYY-MM-DDTHH:MM') to a UNIX timestamp
+        if (is_string($this->published_at) && $this->published_at !== '' && !ctype_digit((string)$this->published_at)) {
+            $ts = strtotime($this->published_at);
+            if ($ts !== false) {
+                $this->published_at = $ts;
+            }
+        }
+
+        // If status is "published" and no date provided — use current time
+        if ((int)$this->status === self::STATUS_PUBLISHED && empty($this->published_at)) {
+            $this->published_at = time();
+        }
+
+        return parent::beforeSave($insert);
+    }
+
     /** @inheritdoc */
     public function attributeLabels(): array
     {

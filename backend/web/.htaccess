@@ -1,0 +1,11 @@
+# Enable URL rewriting for backend
+Options +FollowSymLinks
+IndexIgnore */*
+RewriteEngine On
+
+# Skip existing files and directories
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Route everything to index.php
+RewriteRule . index.php [L]

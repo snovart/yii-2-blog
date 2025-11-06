@@ -96,4 +96,12 @@ class PostController extends Controller
         }
         throw new NotFoundHttpException('Пост не найден.');
     }
+
+    /** View post details */
+    public function actionView($id)
+    {
+        $model = $this->findModel($id);
+        return $this->render('view', ['model' => $model]);
+    }
+
 }

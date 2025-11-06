@@ -9,6 +9,15 @@ $this->params['breadcrumbs'][] = ['label' => 'Посты', 'url' => ['index']];
 $this->params['breadcrumbs'][] = 'Редактирование';
 ?>
 <div class="post-update">
+
     <h1><?= Html::encode($this->title) ?></h1>
-    <?= $this->render('_form', ['model' => $model]) ?>
+
+    <?php
+    // Render the shared post form partial
+    // This form includes all editable fields: title, slug, content, SEO, status, publish date, etc.
+    echo $this->render('_form', [
+        'model' => $model,
+    ]);
+    ?>
+
 </div>
