@@ -36,6 +36,13 @@ AppAsset::register($this);
     ]);
     $menuItems = [
         ['label' => 'Home', 'url' => ['/site/index']],
+
+        // Show Posts menu only for admin role
+        [
+            'label' => 'Посты',
+            'url' => ['/post/index'],
+            'visible' => Yii::$app->user->can('admin'), // check RBAC role
+        ],
     ];
     if (Yii::$app->user->isGuest) {
         $menuItems[] = ['label' => 'Login', 'url' => ['/site/login']];
