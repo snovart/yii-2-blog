@@ -1,4 +1,5 @@
 <?php
+
 return [
     'id' => 'app-backend',
     'basePath' => dirname(__DIR__),
@@ -65,4 +66,6 @@ return [
             ],
         ],
     ],
+    
+    'params' => require __DIR__ . '/params.php',
 ];

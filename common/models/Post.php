@@ -29,6 +29,8 @@ class Post extends ActiveRecord
     public const STATUS_DRAFT     = 0;
     public const STATUS_PUBLISHED = 1;
 
+    public $imageFile = null;
+
     /** @inheritdoc */
     public static function tableName(): string
     {
@@ -39,19 +41,46 @@ class Post extends ActiveRecord
     public function behaviors(): array
     {
         return [
-            // Auto-fill created_at / updated_at with UNIX timestamps
             TimestampBehavior::class,
-            // Auto-fill created_by / updated_by with current user IDs (in web/app context)
             BlameableBehavior::class,
-            // Generate slug from title once; keep unique within the table
             [
                 'class' => SluggableBehavior::class,
-                'attribute' => 'title',       // source field
-                'slugAttribute' => 'slug',    // target field
-                'ensureUnique' => true,       // adds numeric suffix if needed
-                'immutable' => true,          // don't change slug after first save
+                'attribute' => 'title',
+                'slugAttribute' => 'slug',
+                'ensureUnique' => true,
+                'immutable' => true,
             ],
         ];
+    }
+
+    /** Robust string → timestamp normalizer (returns int|null). */
+    private function normalizeToTimestamp($value): ?int
+    {
+        if ($value === '' || $value === null) {
+            return null;
+        }
+        if (is_int($value) || ctype_digit((string)$value)) {
+            return (int)$value;
+        }
+
+        // Try common formats explicitly (more reliable than plain strtotime)
+        $candidates = [
+            'd.m.Y H:i',
+            'Y-m-d\TH:i',
+            'Y-m-d H:i',
+            'd.m.Y',
+            'Y-m-d',
+        ];
+        foreach ($candidates as $fmt) {
+            $dt = \DateTime::createFromFormat($fmt, (string)$value);
+            if ($dt instanceof \DateTime) {
+                return $dt->getTimestamp();
+            }
+        }
+
+        // Fallback to strtotime for anything else
+        $ts = strtotime((string)$value);
+        return $ts !== false ? (int)$ts : null;
     }
 
     /** @inheritdoc */
@@ -59,43 +88,58 @@ class Post extends ActiveRecord
     {
         return [
             [['title', 'content'], 'required'],
-
             [['excerpt', 'content'], 'string'],
 
-            [['status', 'published_at', 'created_at', 'updated_at', 'created_by', 'updated_by'], 'integer'],
+            // integers (published_at валидируем отдельно)
+            [['status', 'created_at', 'updated_at', 'created_by', 'updated_by'], 'integer'],
             ['status', 'in', 'range' => [self::STATUS_DRAFT, self::STATUS_PUBLISHED]],
 
             [['title', 'meta_title'], 'string', 'max' => 255],
-            // NOTE: DB column is 191 for index limit; keep the same in validation
             ['slug', 'string', 'max' => 191],
             [['image', 'meta_description'], 'string', 'max' => 500],
-
-            // Unique slug on application level as well
             ['slug', 'unique'],
 
-            // Safe when using mass-assignment in forms
+            // Allow mass-assignment
             [['published_at', 'image', 'meta_title', 'meta_description', 'excerpt'], 'safe'],
+
+            // Convert published_at BEFORE validation
+            [
+                'published_at',
+                'filter',
+                'filter' => function ($value) {
+                    return $this->normalizeToTimestamp($value);
+                },
+            ],
+            // Then validate as integer (client-валидация может ругаться,
+            // но на сервере всё уже приведено к int)
+            ['published_at', 'integer', 'skipOnEmpty' => true],
+
+            // file upload
+            [
+                ['imageFile'],
+                'file',
+                'skipOnEmpty' => true,
+                'extensions' => ['png','jpg','jpeg','webp','gif'],
+                'maxSize' => 5 * 1024 * 1024,
+            ],
         ];
     }
 
+    public function beforeValidate()
+    {
+        // Extra safety: normalize again in case attribute was set bypassing rules()
+        $this->published_at = $this->normalizeToTimestamp($this->published_at);
+        return parent::beforeValidate();
+    }
+
     /**
-     * Normalize `published_at` and set it automatically when publishing.
+     * Auto-set published_at when publishing if empty.
      */
     public function beforeSave($insert)
     {
-        // Convert string input (e.g. 'YYYY-MM-DDTHH:MM') to a UNIX timestamp
-        if (is_string($this->published_at) && $this->published_at !== '' && !ctype_digit((string)$this->published_at)) {
-            $ts = strtotime($this->published_at);
-            if ($ts !== false) {
-                $this->published_at = $ts;
-            }
-        }
-
-        // If status is "published" and no date provided — use current time
         if ((int)$this->status === self::STATUS_PUBLISHED && empty($this->published_at)) {
             $this->published_at = time();
         }
-
         return parent::beforeSave($insert);
     }
 
@@ -122,13 +166,11 @@ class Post extends ActiveRecord
 
     // --- Helpers -------------------------------------------------------------
 
-    /** Returns whether the post is published. */
     public function isPublished(): bool
     {
         return (int)$this->status === self::STATUS_PUBLISHED;
     }
 
-    /** Relations to User model (optional but handy in views) */
     public function getAuthor()
     {
         return $this->hasOne(\common\models\User::class, ['id' => 'created_by']);

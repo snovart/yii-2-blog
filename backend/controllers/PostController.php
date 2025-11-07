@@ -8,24 +8,22 @@ use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
+use yii\web\UploadedFile;
 
 /**
  * PostController handles CRUD actions for Post model (admin only).
  */
 class PostController extends Controller
 {
-    /** @inheritdoc */
     public function behaviors(): array
     {
         return [
-            // Secure HTTP verbs
             'verbs' => [
                 'class' => VerbFilter::class,
                 'actions' => [
                     'delete' => ['POST'],
                 ],
             ],
-            // Allow only admins
             'access' => [
                 'class' => AccessControl::class,
                 'rules' => [
@@ -55,37 +53,80 @@ class PostController extends Controller
     {
         $model = new Post();
 
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Пост создан успешно.');
-            return $this->redirect(['update', 'id' => $model->id]);
+        if ($model->load(Yii::$app->request->post())) {
+            $model->imageFile = UploadedFile::getInstance($model, 'imageFile');
+
+            if ($model->validate()) {
+                if ($model->imageFile) {
+                    $publicUrl = Yii::$app->imageStorage->save($model->imageFile, 'posts');
+                    if ($publicUrl === null) {
+                        Yii::$app->session->setFlash('error', 'Ошибка сохранения файла.');
+                    } else {
+                        $model->image = $publicUrl;
+                    }
+                }
+
+                if ($model->save(false)) {
+                    Yii::$app->session->setFlash('success', 'Пост создан успешно.');
+                    return $this->redirect(['update', 'id' => $model->id]);
+                }
+            }
         }
 
-        return $this->render('create', [
-            'model' => $model,
-        ]);
+        return $this->render('create', ['model' => $model]);
     }
 
     /** Update existing post */
     public function actionUpdate($id)
     {
         $model = $this->findModel($id);
+        $oldImage = $model->image;
 
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Изменения сохранены.');
-            return $this->refresh();
+        if ($model->load(Yii::$app->request->post())) {
+            $model->imageFile = UploadedFile::getInstance($model, 'imageFile');
+
+            if ($model->validate()) {
+                if ($model->imageFile) {
+                    $publicUrl = Yii::$app->imageStorage->save($model->imageFile, 'posts');
+                    if ($publicUrl === null) {
+                        Yii::$app->session->setFlash('error', 'Ошибка сохранения файла.');
+                    } else {
+                        if (!empty($oldImage) && $oldImage !== $publicUrl) {
+                            Yii::$app->imageStorage->deleteByUrl($oldImage);
+                        }
+                        $model->image = $publicUrl;
+                    }
+                }
+
+                if ($model->save(false)) {
+                    Yii::$app->session->setFlash('success', 'Изменения сохранены.');
+                    return $this->refresh();
+                }
+            }
         }
 
-        return $this->render('update', [
-            'model' => $model,
-        ]);
+        return $this->render('update', ['model' => $model]);
     }
 
     /** Delete post */
     public function actionDelete($id)
     {
-        $this->findModel($id)->delete();
+        $model = $this->findModel($id);
+
+        if (!empty($model->image)) {
+            Yii::$app->imageStorage->deleteByUrl($model->image);
+        }
+
+        $model->delete();
         Yii::$app->session->setFlash('success', 'Пост удалён.');
         return $this->redirect(['index']);
+    }
+
+    /** View post details */
+    public function actionView($id)
+    {
+        $model = $this->findModel($id);
+        return $this->render('view', ['model' => $model]);
     }
 
     /** Find model by ID */
@@ -96,12 +137,4 @@ class PostController extends Controller
         }
         throw new NotFoundHttpException('Пост не найден.');
     }
-
-    /** View post details */
-    public function actionView($id)
-    {
-        $model = $this->findModel($id);
-        return $this->render('view', ['model' => $model]);
-    }
-
 }

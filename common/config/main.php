@@ -19,5 +19,8 @@ return [
             'class' => \yii\rbac\DbManager::class, // DB-based RBAC storage
             // 'cache' => 'cache',
         ],
+        'imageStorage' => [
+            'class' => \common\components\ImageStorage::class,
+        ],
     ],
 ];
